@@ -14,25 +14,25 @@ Inbound and manually sourced leads often arrive in inconsistent formats and are 
 
 The main dashboard provides an at-a-glance view of lead qualification metrics, lead capture, and the automation pipeline.
 
-![GTM Automation OS Dashboard Overview](screenshots/dashboard-overview.png)
+![GTM Automation OS Dashboard Overview](screenshots/gtm-dashboard.png)
 
 ### Lead Pipeline
 
 The lead pipeline displays qualification scores, lead categories, assigned owners, and processing status.
 
-![Lead Pipeline](screenshots/lead-pipeline.png)
+![Lead Pipeline](screenshots/gtm-dashboard-1.png)
 
 ### n8n Workflow Management
 
 The V1 implementation consists of three workflows for lead intake, dashboard data retrieval, and synthetic demo data generation.
 
-![n8n Workflow Overview](screenshots/n8n-workflows.png)
+![n8n Workflow Overview](screenshots/n8n-wf-overview.png)
 
 ### Workflow Execution
 
 n8n execution history provides visibility into workflow runs and their execution status.
 
-![n8n Executions](screenshots/n8n-executions.png)
+![n8n Executions](screenshots/n8n-executives-gtm.png)
 
 ## Implemented in V1
 
