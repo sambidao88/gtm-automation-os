@@ -8,6 +8,32 @@ A portfolio-grade, local-first lead intake and qualification prototype built wit
 
 Inbound and manually sourced leads often arrive in inconsistent formats and are assessed with ad hoc rules. This prototype demonstrates a repeatable flow that normalizes lead submissions, applies transparent qualification rules, assigns a follow-up route, persists the result, and exposes local dashboard metrics.
 
+## Screenshots
+
+### Dashboard Overview
+
+The main dashboard provides an at-a-glance view of lead qualification metrics, lead capture, and the automation pipeline.
+
+![GTM Automation OS Dashboard Overview](screenshots/dashboard-overview.png)
+
+### Lead Pipeline
+
+The lead pipeline displays qualification scores, lead categories, assigned owners, and processing status.
+
+![Lead Pipeline](screenshots/lead-pipeline.png)
+
+### n8n Workflow Management
+
+The V1 implementation consists of three workflows for lead intake, dashboard data retrieval, and synthetic demo data generation.
+
+![n8n Workflow Overview](screenshots/n8n-workflows.png)
+
+### Workflow Execution
+
+n8n execution history provides visibility into workflow runs and their execution status.
+
+![n8n Executions](screenshots/n8n-executions.png)
+
 ## Implemented in V1
 
 - n8n workflow orchestration and HTTP webhooks.
