@@ -1,0 +1,86 @@
+{
+  "name": "GTM OS - WF03 Seed Synthetic Demo Leads",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gtm-seed-demo",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "30000000-0000-4000-8000-000000000001",
+      "name": "Seed Demo Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const samples = [\n{email:'linh.nguyen@abc-retail.example',first_name:'Linh',last_name:'Nguyen',company_name:'ABC Retail',website:'https://abc-retail.example',industry:'Retail',employees:80,country:'Vietnam',job_title:'Operations Manager',business_need:'Inventory automation',source:'demo_seed'},\n{email:'alex@northstar.example',first_name:'Alex',last_name:'Tran',company_name:'Northstar',website:'https://northstar.example',industry:'SaaS',employees:120,country:'Singapore',job_title:'Founder',business_need:'Sales automation',source:'demo_seed'},\n{email:'mai@mekong-distribution.example',first_name:'Mai',last_name:'Pham',company_name:'Mekong Distribution',website:'https://mekong-distribution.example',industry:'Distribution',employees:240,country:'Vietnam',job_title:'Marketing Executive',business_need:'Marketing analytics',source:'demo_seed'},\n{email:'minh@small-cafe.example',first_name:'Minh',last_name:'Le',company_name:'Small Cafe',website:'https://small-cafe.example',industry:'Hospitality',employees:8,country:'Vietnam',job_title:'Staff',business_need:'General inquiry',source:'demo_seed'}\n];\nreturn samples.map(x=>({json:x}));"
+      },
+      "id": "30000000-0000-4000-8000-000000000002",
+      "name": "Generate Synthetic Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n:5678/webhook/gtm-lead-intake",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "30000000-0000-4000-8000-000000000003",
+      "name": "Send Each Lead to Intake",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Seed Demo Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Synthetic Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Synthetic Leads": {
+      "main": [
+        [
+          {
+            "node": "Send Each Lead to Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

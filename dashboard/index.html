@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GTM Automation OS — V1</title>
+<style>
+:root{font-family:Inter,system-ui,Arial;color:#e8edf5;background:#0b1220}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1200px;margin:auto;padding:28px 20px}
+header{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:22px}
+h1{font-size:25px;margin:0}.muted{color:#93a4ba;font-size:12px;margin-top:6px}
+.pill{border:1px solid #285044;color:#7ce0b6;background:#10251f;padding:7px 11px;border-radius:30px;font-size:11px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.card,.panel{background:#121d30;border:1px solid #25344c;border-radius:13px;padding:16px}
+.k{color:#9cabc0;font-size:12px}.v{font-size:27px;font-weight:700;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+h2{font-size:15px;margin:0 0 14px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+input{width:100%;background:#0b1424;border:1px solid #30415d;color:#eef3fa;border-radius:8px;padding:10px}
+button{background:#3478f6;color:white;border:0;border-radius:8px;padding:10px 13px;font-weight:600;cursor:pointer}
+button.secondary{background:#2a3a53}.full{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;padding:10px 7px;border-bottom:1px solid #26364e;white-space:nowrap}th{color:#91a3bb;font-weight:500}
+.tag{padding:4px 7px;border-radius:6px;background:#26364f}.HOT{background:#452720;color:#ffb6a5}.WARM{background:#40351e;color:#ffdc94}.COLD{background:#26364f;color:#afc4df}
+#message{font-size:12px;color:#8fe0b8;min-height:18px;margin-top:9px}.hint{font-size:11px;line-height:1.5;color:#8fa0b7;margin-top:12px}
+.pipeline{font-size:12px;line-height:2;color:#b9c6d8}.events{font-size:11px;line-height:1.8;color:#aebbd0}
+@media(max-width:900px){.cards{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}}
+@media(max-width:560px){.cards{grid-template-columns:repeat(2,1fr)}form{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}}
+</style></head>
+<body><div class="wrap">
+<header><div><h1>GTM Automation OS</h1><div class="muted">n8n-first · Supabase storage · Mock enrichment · Human-approved routing</div></div><span class="pill">● V1 DEMO</span></header>
+<section class="cards">
+<div class="card"><div class="k">Total leads</div><div class="v" id="total">—</div></div>
+<div class="card"><div class="k">Hot</div><div class="v" id="hot">—</div></div>
+<div class="card"><div class="k">Warm</div><div class="v" id="warm">—</div></div>
+<div class="card"><div class="k">Cold</div><div class="v" id="cold">—</div></div>
+<div class="card"><div class="k">Average score</div><div class="v" id="avg">—</div></div>
+</section>
+<div class="grid">
+<section class="panel"><h2>Capture a lead</h2>
+<form id="leadForm">
+<input name="first_name" placeholder="First name" value="Jamie" required>
+<input name="last_name" placeholder="Last name" value="Pham">
+<input name="email" type="email" placeholder="Work email" value="jamie@demo.example" required>
+<input name="company_name" placeholder="Company" value="ABC Retail">
+<input name="website" placeholder="Website" value="https://abc-retail.example">
+<input name="industry" placeholder="Industry" value="Retail">
+<input name="employees" type="number" placeholder="Employees" value="80">
+<input name="country" placeholder="Country" value="Vietnam">
+<input name="job_title" placeholder="Job title" value="Operations Manager">
+<input name="business_need" placeholder="Business need" value="Inventory automation">
+<button class="full" type="submit">Capture & process with n8n</button>
+</form><div id="message"></div>
+<div class="hint">All enrichment is synthetic in V1. The workflow does not send emails, LinkedIn messages or Zalo messages. Scores are transparent demo rules, not validated production predictions.</div>
+</section>
+<section class="panel"><h2>Automation pipeline</h2>
+<div class="pipeline">01 · Webhook lead capture<br>↓<br>02 · Normalize + validate<br>↓<br>03 · Mock waterfall enrichment<br>↓<br>04 · ICP scoring + routing<br>↓<br>05 · Supabase upsert + event log<br>↓<br>06 · Dashboard refresh</div>
+<button class="secondary" onclick="seed()">Load synthetic demo leads</button>
+<div class="hint">Use this button to trigger the n8n seed workflow. Activate the imported workflows first.</div>
+</section></div>
+<section class="panel" style="margin-top:14px"><h2>Lead pipeline</h2><div style="overflow:auto"><table><thead><tr><th>Contact</th><th>Company</th><th>Industry</th><th>Score</th><th>Band</th><th>Owner</th><th>Status</th></tr></thead><tbody id="leads"><tr><td colspan="7">Waiting for dashboard API…</td></tr></tbody></table></div></section>
+<section class="panel" style="margin-top:14px"><h2>System notes</h2><div class="events" id="notes">Dashboard will load from the n8n dashboard webhook.</div></section>
+</div>
+<script>
+const INTAKE_URL='http://localhost:5679/webhook/gtm-lead-intake';
+const DASHBOARD_URL='http://localhost:5679/webhook/gtm-dashboard-data';
+const SEED_URL='http://localhost:5679/webhook/gtm-seed-demo';
+async function refresh(){
+ try{
+  const r=await fetch(DASHBOARD_URL);if(!r.ok)throw new Error('Dashboard webhook returned '+r.status);
+  const d=await r.json(),m=d.metrics||{},l=d.leads||[];
+  for(const k of ['total_leads','hot_leads','warm_leads','cold_leads','average_score'])document.getElementById(({total_leads:'total',hot_leads:'hot',warm_leads:'warm',cold_leads:'cold',average_score:'avg'})[k]).textContent=m[k]??0;
+  document.getElementById('leads').innerHTML=l.map(x=>`<tr><td>${esc((x.first_name||'')+' '+(x.last_name||''))}<br><span style="color:#8294ad">${esc(x.email)}</span></td><td>${esc(x.company_name||'—')}</td><td>${esc(x.industry||'—')}</td><td>${x.score}</td><td><span class="tag ${esc(x.score_band)}">${esc(x.score_band)}</span></td><td>${esc(x.owner||'—')}</td><td>${esc(x.status||'—')}</td></tr>`).join('')||'<tr><td colspan="7">No leads yet.</td></tr>';
+  document.getElementById('notes').textContent=`Loaded ${l.length} records from Supabase via n8n. Dashboard refresh: ${new Date().toLocaleTimeString()}.`;
+ }catch(e){document.getElementById('notes').textContent='Cannot load dashboard data: '+e.message+'. Check n8n workflow activation and CORS.';}
+}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+document.getElementById('leadForm').addEventListener('submit',async e=>{
+ e.preventDefault();const fd=new FormData(e.target),d=Object.fromEntries(fd.entries());d.employees=d.employees?Number(d.employees):null;d.source='dashboard_form';
+ const msg=document.getElementById('message');msg.textContent='Sending to n8n…';
+ try{const r=await fetch(INTAKE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+ const out=await r.json();if(!r.ok||out.ok===false)throw new Error(out.message||'Request failed');
+ msg.textContent=`Processed · score ${out.lead.score} · ${out.lead.owner} · ${out.lead.status}`;await refresh();
+ }catch(err){msg.textContent='Error: '+err.message+'. Confirm n8n is running and webhook is active.';}
+});
+async function seed(){const msg=document.getElementById('message');msg.textContent='Seeding synthetic leads…';try{const r=await fetch(SEED_URL,{method:'POST'});if(!r.ok)throw new Error('Seed workflow failed');msg.textContent='Seed workflow triggered. Refreshing shortly…';setTimeout(refresh,1800);}catch(e){msg.textContent='Error: '+e.message;}}
+refresh();setInterval(refresh,15000);
+</script></body></html>

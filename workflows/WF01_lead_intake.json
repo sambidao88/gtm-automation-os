@@ -1,0 +1,180 @@
+{
+  "name": "GTM OS - WF01 Lead Intake Enrichment Scoring Routing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gtm-lead-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "Lead Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $json.body ?? $json;\nconst email = String(input.email || '').trim().toLowerCase();\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n  throw new Error('A valid email is required');\n}\nconst domain = String(input.website || '').toLowerCase()\n  .replace(/^https?:\\/\\//, '').split('/')[0].replace(/^www\\./, '');\nconst fixtures = {\n  'abc-retail.example': { company_name: 'ABC Retail', industry: 'Retail', employees: 80, country: 'Vietnam', signals: ['Hiring operations staff'] },\n  'northstar.example': { company_name: 'Northstar', industry: 'SaaS', employees: 120, country: 'Singapore', signals: ['Expanded product team'] },\n  'mekong-distribution.example': { company_name: 'Mekong Distribution', industry: 'Distribution', employees: 240, country: 'Vietnam', signals: ['Opened a new distribution center'] }\n};\n// Mock waterfall: provider A exact domain, then provider B fixture fallback.\n// Replace this block with Clay table/API integration in V2.\nlet enrichment_source = 'submitted_data';\nlet enriched = {};\nif (fixtures[domain]) {\n  enriched = fixtures[domain];\n  enrichment_source = 'mock_provider_a';\n} else {\n  const fallback = Object.entries(fixtures).find(([d]) => domain.endsWith('.example') && d === 'abc-retail.example');\n  if (fallback) {\n    enriched = fallback[1];\n    enrichment_source = 'mock_provider_b';\n  }\n}\nconst lead = { ...input, ...Object.fromEntries(Object.entries(enriched).filter(([k,v]) => !input[k] || k === 'signals')) };\nlead.email = email;\nlead.company_name = lead.company_name || input.company_name || '';\nlead.website = input.website || '';\nlead.industry = lead.industry || input.industry || 'Unknown';\nlead.country = lead.country || input.country || 'Unknown';\nlead.employees = Number(lead.employees ?? input.employees ?? 0);\nlead.enrichment_status = Object.keys(enriched).length ? 'enriched_mock' : 'partial';\nlead.enrichment_source = enrichment_source;\nlead.signals = lead.signals || [];\nlet score = 0;\nconst reasons = [];\nif (['software','saas','technology','retail','distribution'].includes(String(lead.industry).toLowerCase())) { score += 20; reasons.push('Target industry +20'); }\nif (lead.employees >= 20 && lead.employees <= 500) { score += 20; reasons.push('Company size 20-500 +20'); }\nif (['vietnam','singapore','malaysia','united states','usa'].includes(String(lead.country).toLowerCase())) { score += 15; reasons.push('Target geography +15'); }\nif (/(founder|ceo|director|manager|head|vp)/i.test(lead.job_title || '')) { score += 20; reasons.push('Decision-maker title +20'); }\nif (/(automation|crm|inventory|analytics|data|sales|marketing)/i.test(lead.business_need || '')) { score += 25; reasons.push('Relevant business need +25'); }\nconst band = score >= 75 ? 'HOT' : score >= 50 ? 'WARM' : 'COLD';\nconst owner = score >= 75 ? 'Senior Sales' : score >= 50 ? 'Sales Development' : 'Marketing Nurture';\nconst status = score >= 50 ? 'needs_human_review' : 'nurture';\nconst now = new Date().toISOString();\nreturn { json: {\n  email, first_name: input.first_name || '', last_name: input.last_name || '',\n  company_name: lead.company_name, website: lead.website,\n  industry: lead.industry, employees: lead.employees,\n  country: lead.country, job_title: input.job_title || '',\n  business_need: input.business_need || '', source: input.source || 'website',\n  enrichment_status: lead.enrichment_status, enrichment_source: lead.enrichment_source,\n  signals: lead.signals, score, score_band: band, score_reasons: reasons,\n  owner, status, ai_mode: 'not_configured_rules_only',\n  ai_qualification: { fit: band.toLowerCase(), summary: 'V1 uses deterministic ICP rules; AI connector is reserved for V2.', recommended_action: 'Human review before outbound' },\n  human_approval_required: score >= 50, updated_at: now,\n  event_type: 'lead_processed', event_detail: `score=${score}; band=${band}; owner=${owner}; enrichment=${enrichment_source}`\n} };\n"
+      },
+      "id": "10000000-0000-4000-8000-000000000002",
+      "name": "Normalize, Enrich & Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/leads?on_conflict=email' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SECRET_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({email:$node['Normalize, Enrich & Score'].json.email, first_name:$node['Normalize, Enrich & Score'].json.first_name, last_name:$node['Normalize, Enrich & Score'].json.last_name, company_name:$node['Normalize, Enrich & Score'].json.company_name, website:$node['Normalize, Enrich & Score'].json.website, industry:$node['Normalize, Enrich & Score'].json.industry, employees:$node['Normalize, Enrich & Score'].json.employees, country:$node['Normalize, Enrich & Score'].json.country, job_title:$node['Normalize, Enrich & Score'].json.job_title, business_need:$node['Normalize, Enrich & Score'].json.business_need, source:$node['Normalize, Enrich & Score'].json.source, enrichment_status:$node['Normalize, Enrich & Score'].json.enrichment_status, enrichment_source:$node['Normalize, Enrich & Score'].json.enrichment_source, signals:$node['Normalize, Enrich & Score'].json.signals, score:$node['Normalize, Enrich & Score'].json.score, score_band:$node['Normalize, Enrich & Score'].json.score_band, score_reasons:$node['Normalize, Enrich & Score'].json.score_reasons, owner:$node['Normalize, Enrich & Score'].json.owner, status:$node['Normalize, Enrich & Score'].json.status, ai_mode:$node['Normalize, Enrich & Score'].json.ai_mode, ai_qualification:$node['Normalize, Enrich & Score'].json.ai_qualification, human_approval_required:$node['Normalize, Enrich & Score'].json.human_approval_required, updated_at:$node['Normalize, Enrich & Score'].json.updated_at}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "10000000-0000-4000-8000-000000000003",
+      "name": "Upsert Lead in Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/events' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SECRET_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({lead_email:$node['Normalize, Enrich & Score'].json.email,event_type:'lead_processed',detail:$node['Normalize, Enrich & Score'].json.event_detail}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "10000000-0000-4000-8000-000000000004",
+      "name": "Write Event Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, lead: $node['Normalize, Enrich & Score'].json, message: 'Lead processed and saved to Supabase' } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "10000000-0000-4000-8000-000000000005",
+      "name": "Respond to Lead Source",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Lead Intake Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize, Enrich & Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize, Enrich & Score": {
+      "main": [
+        [
+          {
+            "node": "Upsert Lead in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Lead in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Write Event Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Event Log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Lead Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,119 @@
+{
+  "name": "GTM OS - WF02 Dashboard Data API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "gtm-dashboard-data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "Dashboard API Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/leads?select=*&order=created_at.desc&limit=500' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SECRET_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "20000000-0000-4000-8000-000000000002",
+      "name": "Fetch Leads from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(x => x && x.email);\nconst count = (band) => rows.filter(r => r.score_band === band).length;\nconst total = rows.length;\nconst avg = total ? rows.reduce((s,r) => s + Number(r.score || 0), 0) / total : 0;\nreturn [{json:{\n  metrics:{total_leads:total,hot_leads:count('HOT'),warm_leads:count('WARM'),cold_leads:count('COLD'),\n    routed_leads:rows.filter(r=>!!r.owner).length,average_score:Number(avg.toFixed(1))},\n  leads:rows\n}}];"
+      },
+      "id": "20000000-0000-4000-8000-000000000003",
+      "name": "Build Dashboard Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "20000000-0000-4000-8000-000000000004",
+      "name": "Respond Dashboard JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Dashboard API Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Leads from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Leads from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Dashboard Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Dashboard Payload": {
+      "main": [
+        [
+          {
+            "node": "Respond Dashboard JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}
